@@ -309,11 +309,17 @@ function RenameInstance({ inst, onClose, onDone }: { inst: InstanceWithStatus; o
 
 function ResetPassword({ user, onClose, onDone }: { user: PanelUser; onClose: () => void; onDone: () => void }) {
   const [pw, setPw] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const mismatch = confirm.length > 0 && pw !== confirm;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr('');
+    if (pw !== confirm) {
+      setErr('两次输入的新密码不一致');
+      return;
+    }
     setBusy(true);
     try {
       await api.resetUser(user.id, pw);
@@ -329,12 +335,13 @@ function ResetPassword({ user, onClose, onDone }: { user: PanelUser; onClose: ()
       <form className="card modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>重置「{user.username}」的密码</h2>
         <PasswordInput placeholder="新密码（至少 6 位）" autoComplete="new-password" value={pw} onChange={setPw} />
-        {err && <div className="error">{err}</div>}
+        <PasswordInput placeholder="再次输入新密码" autoComplete="new-password" value={confirm} onChange={setConfirm} />
+        {(mismatch || err) && <div className="error">{mismatch ? '两次输入的新密码不一致' : err}</div>}
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>
             取消
           </button>
-          <button className="btn btn-primary" disabled={busy || pw.length < 6}>
+          <button className="btn btn-primary" disabled={busy || pw.length < 6 || pw !== confirm}>
             重置
           </button>
         </div>

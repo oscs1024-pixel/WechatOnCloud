@@ -16,6 +16,10 @@ export interface User {
   allowedInstances: string[];
   // 仍在使用初始默认密码时为 true，前端据此提示尽快改密；任意一次改密/重置后清除。
   mustChangePassword?: boolean;
+  // 离线密码找回：在 accounts.json 手动把某用户置为 true，重启面板即重置其密码并清除此标记。
+  // 兼容下划线写法 reset_password。
+  resetPassword?: boolean;
+  reset_password?: boolean;
 }
 
 // 初始默认管理员密码；管理员仍在用它时强烈提示改密。
@@ -85,6 +89,19 @@ export function initStore() {
       if (u.role === 'admin' && u.mustChangePassword === undefined) {
         u.mustChangePassword = bcrypt.compareSync(DEFAULT_ADMIN_PASSWORD, u.passwordHash);
       }
+    }
+  }
+  // 离线密码找回：忘记超管密码时，停掉面板 → 在 accounts.json 给该用户加 "resetPassword": true
+  // → 重启面板。这里把其密码重置为 PANEL_ADMIN_PASSWORD（默认 wechat）、解禁，并清除标记。
+  for (const u of data.users) {
+    if ((u as any).resetPassword === true || (u as any).reset_password === true) {
+      const pw = process.env.PANEL_ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD;
+      u.passwordHash = bcrypt.hashSync(pw, 10);
+      u.mustChangePassword = pw === DEFAULT_ADMIN_PASSWORD; // 重置成默认密码则提示尽快改密
+      u.disabled = false;
+      delete (u as any).resetPassword;
+      delete (u as any).reset_password;
+      console.log(`[store] 已重置用户 '${u.username}' 的密码（resetPassword 标记，密码=PANEL_ADMIN_PASSWORD 或默认 wechat）`);
     }
   }
   persist();

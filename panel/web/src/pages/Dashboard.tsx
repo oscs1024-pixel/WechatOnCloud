@@ -206,12 +206,20 @@ function InstanceCard({
 function ChangePassword({ onClose, onSaved }: { onClose: () => void; onSaved?: () => void }) {
   const [oldPassword, setOld] = useState('');
   const [newPassword, setNew] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const mismatch = confirm.length > 0 && newPassword !== confirm;
+  const canSubmit = !busy && !!oldPassword && newPassword.length >= 6 && newPassword === confirm;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg('');
+    if (newPassword !== confirm) {
+      setMsg('两次输入的新密码不一致');
+      return;
+    }
     setBusy(true);
     try {
       await api.changePassword(oldPassword, newPassword);
@@ -231,12 +239,14 @@ function ChangePassword({ onClose, onSaved }: { onClose: () => void; onSaved?: (
         <h2>修改密码</h2>
         <PasswordInput placeholder="原密码" autoComplete="current-password" value={oldPassword} onChange={setOld} />
         <PasswordInput placeholder="新密码（至少 6 位）" autoComplete="new-password" value={newPassword} onChange={setNew} />
+        <PasswordInput placeholder="再次输入新密码" autoComplete="new-password" value={confirm} onChange={setConfirm} />
+        {mismatch && <div className="error">两次输入的新密码不一致</div>}
         {msg && <div className={msg === '修改成功' ? 'ok' : 'error'}>{msg}</div>}
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose}>
             取消
           </button>
-          <button className="btn btn-primary" disabled={busy || !oldPassword || !newPassword}>
+          <button className="btn btn-primary" disabled={!canSubmit}>
             确定
           </button>
         </div>

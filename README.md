@@ -282,8 +282,33 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 | 过段时间掉登录 | 微信桌面会话会定期失效，需手机重新扫码（见技术方案 6.2） |
 | 下载 / 更新微信失败 | 腾讯 CDN 偶发波动，重新点「下载并安装 / 更新」即可；脚本已内置主/备 CDN 自动回退 |
 | 架构不支持报错 | 微信仅提供 x86_64 / arm64；其他架构下载时会在面板状态里报错 |
+| 忘记超管密码 | 见下方「重置超管密码」离线找回 |
 
 查看面板日志：`docker logs -f woc-panel`；查看某实例日志：`docker logs -f woc-wx-<id>`（实例 ID 可在面板看到，或 `docker ps | grep woc-wx`）。
+
+### 重置超管密码（离线找回）
+
+管理员密码无法被他人重置，忘记时按以下步骤离线找回：
+
+```bash
+docker compose stop panel                 # 1) 先停面板，避免覆盖你的手动修改
+```
+
+2) 编辑 `./data-panel/accounts.json`，给对应用户对象加一行 `"resetPassword": true`：
+
+```json
+{
+  "id": "...", "username": "admin", "role": "admin",
+  "passwordHash": "...", "disabled": false,
+  "resetPassword": true
+}
+```
+
+```bash
+docker compose up -d                       # 3) 重启，面板启动时会重置该账号
+```
+
+重启后该账号密码被重置为 `PANEL_ADMIN_PASSWORD`（即 `.env` 的 `WOC_PASSWORD`，默认 `wechat`），并自动**解禁**、清除该标记；用此密码登录后请立即在「修改密码」改掉。日志会打印 `[store] 已重置用户 '<用户名>' 的密码`。
 
 ---
 
