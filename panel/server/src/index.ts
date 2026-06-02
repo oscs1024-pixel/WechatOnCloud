@@ -49,6 +49,7 @@ import {
   typeInInstance,
 } from './docker.js';
 import { createSession, getSession, destroySession, destroyUserSessions } from './sessions.js';
+import { parseHost, parseAllowedHosts, isAllowedHost } from './host-guard.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -56,6 +57,11 @@ const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
 const STATIC_DIR = process.env.STATIC_DIR || join(__dirname, '../../web/dist');
 const COOKIE = 'woc_sess';
+// Public hostnames the panel will accept Host headers for, in addition to the
+// always-on loopback + RFC1918 LAN allowlist. Required for HTTPS reverse-proxy
+// deploys (Caddy/nginx/飞牛 内置反代) where the public hostname differs from
+// the LAN IP. See .env.example.
+const ALLOWED_HOSTS = parseAllowedHosts(process.env.PANEL_ALLOWED_HOSTS);
 
 function basicAuth(inst: Instance) {
   return 'Basic ' + Buffer.from(`${inst.kasmUser}:${inst.kasmPassword}`).toString('base64');
@@ -64,6 +70,17 @@ function basicAuth(inst: Instance) {
 initStore();
 
 const app = Fastify({ logger: true, trustProxy: true });
+
+// DNS-rebinding gate: reject requests whose Host header is neither a loopback /
+// RFC1918 LAN address nor in PANEL_ALLOWED_HOSTS. Runs before every route so
+// /api/*, /desktop/* and static-file responses are all covered.
+app.addHook('onRequest', async (req, reply) => {
+  const host = parseHost(req.headers.host);
+  if (!isAllowedHost(host, ALLOWED_HOSTS)) {
+    reply.code(400).send({ error: 'Host header not allowed' });
+  }
+});
+
 await app.register(cookie);
 // 文件上传走原始二进制（前端以 application/octet-stream 直传 File）
 app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
@@ -588,6 +605,12 @@ function parseCookies(header?: string): Record<string, string> {
 await app.ready();
 
 app.server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+  // DNS-rebinding gate for WebSocket upgrades (Fastify's onRequest hook does
+  // not run on raw upgrades). KasmVNC proxying goes through this path.
+  if (!isAllowedHost(parseHost(req.headers.host), ALLOWED_HOSTS)) {
+    socket.destroy();
+    return;
+  }
   const parsed = req.url ? parseDesktopUrl(req.url) : null;
   if (!parsed) {
     socket.destroy();
