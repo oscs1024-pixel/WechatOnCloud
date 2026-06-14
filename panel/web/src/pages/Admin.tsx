@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Cropper from 'react-easy-crop';
-import { api, APP_LABELS, appProfile, type PanelUser, type InstanceWithStatus, type VolEntry, type AppType } from '../api';
+import { api, APP_LABELS, appProfile, type PanelUser, type InstanceWithStatus, type VolEntry, type AppType, type VersionInfo } from '../api';
 import { InstanceIcon, ICON_CHOICES } from '../AppIcon';
 import { useUI, PasswordInput } from '../ui';
 import { useAuth } from '../auth';
@@ -77,6 +77,86 @@ function EmptyState({ icon, title, sub, action }: { icon: string; title: string;
       {sub && <div className="empty-sub">{sub}</div>}
       {action && <div className="empty-action">{action}</div>}
     </div>
+  );
+}
+
+const RELEASES_URL = 'https://github.com/Gloridust/WechatOnCloud/releases';
+
+// 「关于」：显示真实构建版本号 + 检测新版（后台已每 6h 查 Docker Hub/GHCR；这里读缓存并可手动重查）。
+function AboutSection({ isAdmin }: { isAdmin: boolean }) {
+  const { toast } = useUI();
+  const [info, setInfo] = useState<VersionInfo | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    api.getVersion().then(setInfo).catch(() => {});
+  }, []);
+
+  const check = async () => {
+    setChecking(true);
+    try {
+      const r = await api.checkUpdate();
+      setInfo(r);
+      if (r.hasUpdate) toast(`发现新版本 ${r.latest}`, 'ok');
+      else if (r.error) toast('检查失败：' + r.error, 'error');
+      else toast('已是最新版本', 'ok');
+    } catch (e: any) {
+      toast(e.message || '检查失败', 'error');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="section-row" style={{ marginTop: 22 }}>
+        <span className="section-title">关于</span>
+      </div>
+      <div className="inst-grid">
+        <div className="inst-card">
+          <div className="inst-head">
+            <span className="inst-name">云微 · WechatOnCloud</span>
+            {info?.hasUpdate && <span className="tag tag-warn">有新版</span>}
+          </div>
+          <div className="inst-sub">
+            当前版本 <b>{info?.current ?? '…'}</b>
+            {info?.hasUpdate && info.latest && (
+              <>
+                {' · '}最新 <b>{info.latest}</b>
+              </>
+            )}
+            {info && !info.hasUpdate && info.latest && !info.error && <>{' · '}已是最新</>}
+          </div>
+          {info?.hasUpdate && (
+            <div className="ver-hint">
+              在宿主执行 <code>docker compose pull &amp;&amp; docker compose up -d</code> 升级面板；各实例镜像可在「管理 → 升级」单独更新。
+            </div>
+          )}
+          <div className="inst-actions">
+            {isAdmin && (
+              <button className="btn" disabled={checking} onClick={check}>
+                {checking ? '检查中…' : '检查更新'}
+              </button>
+            )}
+            <a className="btn" href={RELEASES_URL} target="_blank" rel="noreferrer">
+              发布日志
+            </a>
+            {info?.hasUpdate && (
+              <a className="btn btn-primary" href={RELEASES_URL + '/latest'} target="_blank" rel="noreferrer">
+                查看新版
+              </a>
+            )}
+          </div>
+          {info && (
+            <div className="muted small ver-checked">
+              {info.checkedAt ? `上次检查 ${fmtDate(info.checkedAt)}` : '尚未检查'}
+              {info.source && ` · 来源 ${info.source}`}
+              {info.error && ` · ${info.error}`}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -446,6 +526,8 @@ export default function Admin({ onOpenMenu, onChangePassword }: { onOpenMenu: ()
             </div>
           </div>
         </div>
+
+        <AboutSection isAdmin={isAdmin} />
       </main>
 
       {creatingUser && (

@@ -157,6 +157,17 @@ function Sidebar({ collapsed, onToggleCollapsed }: { collapsed: boolean; onToggl
   const isAdmin = user?.role === 'admin';
   const go = (p: string) => nav(p);
 
+  // 有新版时在「管理」入口点个红点（仅管理员，因为升级面板需管理员在宿主操作）。
+  // 依赖 loc.pathname：导航时复查一次（服务端有缓存、开销极小），保证刚启动时首检完成后红点能及时出现。
+  const [hasUpdate, setHasUpdate] = useState(false);
+  useEffect(() => {
+    if (!isAdmin) return;
+    api
+      .getVersion()
+      .then((v) => setHasUpdate(!!v.hasUpdate))
+      .catch(() => {});
+  }, [isAdmin, loc.pathname]);
+
   return (
     <aside className="sidebar">
       <div className="sb-top">
@@ -196,9 +207,17 @@ function Sidebar({ collapsed, onToggleCollapsed }: { collapsed: boolean; onToggl
       </div>
 
       <div className="sb-footer">
-        <button className={'sb-item' + (loc.pathname === '/admin' ? ' on' : '')} onClick={() => go('/admin')} title={isAdmin ? '管理' : '设置'}>
-          <span className="sb-ic">{Icon.gear}</span>
+        <button
+          className={'sb-item' + (loc.pathname === '/admin' ? ' on' : '')}
+          onClick={() => go('/admin')}
+          title={isAdmin && hasUpdate ? '管理 · 有新版本可用' : isAdmin ? '管理' : '设置'}
+        >
+          <span className="sb-ic">
+            {Icon.gear}
+            {isAdmin && hasUpdate && <span className="sb-updot" />}
+          </span>
           {!collapsed && <span className="sb-label">{isAdmin ? '管理' : '设置'}</span>}
+          {!collapsed && isAdmin && hasUpdate && <span className="sb-updot-text">新版</span>}
         </button>
         <button
           className="sb-item"

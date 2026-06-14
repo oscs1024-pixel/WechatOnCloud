@@ -75,6 +75,15 @@ export interface VolEntry {
   mtime: number; // epoch ms
 }
 
+export interface VersionInfo {
+  current: string; // 当前构建版本（如 v1.2.0 / dev）
+  latest: string | null; // 仓库上最新发布版（如 v1.2.1）；查不到为 null
+  hasUpdate: boolean; // 有更高的语义化版本可用
+  checkedAt: number; // 上次检查时间戳（ms）；0=尚未检查
+  source: string | null; // 数据来源：dockerhub / ghcr / dockerhub+ghcr
+  error: string | null; // 检查失败原因
+}
+
 // 原始二进制上传（File 直传 application/octet-stream），用于数据卷上传/解压/恢复
 async function rawUpload(url: string, file: File): Promise<any> {
   const res = await fetch(url, {
@@ -115,6 +124,10 @@ export const api = {
   logout: () => req('/api/auth/logout', { method: 'POST' }),
   changePassword: (oldPassword: string, newPassword: string) =>
     req('/api/account/password', { method: 'POST', body: JSON.stringify({ oldPassword, newPassword }) }),
+
+  // 版本与更新检测
+  getVersion: () => req<VersionInfo>('/api/version'),
+  checkUpdate: () => req<VersionInfo>('/api/admin/version/check', { method: 'POST' }),
 
   // 子账号
   listUsers: () => req<{ users: PanelUser[] }>('/api/admin/users'),

@@ -970,6 +970,31 @@ button {
   gap: 8px;
   margin-top: 14px;
 }
+/* 「关于」版本卡：有新版时的升级提示 + 上次检查脚注 */
+.ver-hint {
+  margin-top: 10px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+  background: rgba(245 158 11 / 0.1);
+  border-radius: 10px;
+}
+.ver-hint code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(var(--shadow) / 0.08);
+  white-space: nowrap;
+}
+.ver-checked {
+  margin-top: 12px;
+}
+.inst-actions a.btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
 .inst-enter {
   flex: 1;
 }
@@ -1371,12 +1396,30 @@ button {
   color: var(--wx-green-dark);
 }
 .sb-ic {
+  position: relative;
   flex: none;
   width: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--muted);
+}
+/* 「有新版」红点：贴在「管理」齿轮图标右上角，折叠/展开都可见 */
+.sb-updot {
+  position: absolute;
+  top: -2px;
+  right: -1px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f5483b;
+  border: 2px solid var(--surface);
+}
+.sb-updot-text {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: #f5483b;
 }
 .sb-label {
   flex: 1;

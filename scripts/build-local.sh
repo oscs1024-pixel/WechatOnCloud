@@ -10,13 +10,15 @@ set -euo pipefail
 
 OWNER="${WOC_IMAGE_OWNER:-gloridust}"
 TAG="${WOC_VERSION:-latest}"
+# 烤进面板镜像的版本号：设了 WOC_VERSION 就用它（如 v1.2.0），否则 dev（dev 不会触发「有新版」红点）。
+VER="${WOC_VERSION:-dev}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 PANEL_IMAGE="ghcr.io/${OWNER}/woc-panel:${TAG}"
 WECHAT_IMAGE="ghcr.io/${OWNER}/wechat-on-cloud:${TAG}"
 
-echo "==> 构建面板镜像 ${PANEL_IMAGE}"
-docker build -t "${PANEL_IMAGE}" "${ROOT}/panel"
+echo "==> 构建面板镜像 ${PANEL_IMAGE} （版本号 ${VER}）"
+docker build --build-arg "WOC_VERSION=${VER}" -t "${PANEL_IMAGE}" "${ROOT}/panel"
 
 echo "==> 构建微信实例镜像 ${WECHAT_IMAGE}"
 docker build -t "${WECHAT_IMAGE}" "${ROOT}/docker"

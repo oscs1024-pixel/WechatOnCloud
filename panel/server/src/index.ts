@@ -73,6 +73,7 @@ import {
 } from './docker.js';
 import { createSession, getSession, destroySession, destroyUserSessions } from './sessions.js';
 import { parseHost, parseAllowedHosts, isRequestHostAllowed } from './host-guard.js';
+import { CURRENT_VERSION, versionInfo, ensureChecked, checkForUpdate, startUpdateChecker } from './version.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -170,6 +171,19 @@ app.get('/api/auth/me', async (req, reply) => {
   const u = currentUser(req);
   if (!u) return reply.code(401).send({ error: '未登录' });
   return { user: publicUser(u) };
+});
+
+// ---------- 版本与更新检测 ----------
+// 当前构建版本 + 缓存的「最新版」检测结果（后台每 6h 查一次 Docker Hub/GHCR）。任何登录用户可读。
+app.get('/api/version', async (req, reply) => {
+  if (!requireAuth(req, reply)) return;
+  ensureChecked(); // 刚启动还没首检时，触发一次后台检查（不阻塞本次响应）
+  return versionInfo();
+});
+// 立即重新检查（管理员，用于「检查更新」按钮）。
+app.post('/api/admin/version/check', async (req, reply) => {
+  if (!requireAdmin(req, reply)) return;
+  return await checkForUpdate();
 });
 
 // ---------- 自助改密 ----------
@@ -1083,4 +1097,5 @@ if (WATCHDOG_ENABLED) {
 }
 
 await app.listen({ port: PORT, host: HOST });
-console.log(`[panel] 监听 http://${HOST}:${PORT}  （多实例反代已就绪）`);
+console.log(`[panel] 监听 http://${HOST}:${PORT}  （多实例反代已就绪）· 版本 ${CURRENT_VERSION}`);
+startUpdateChecker(); // 后台检测新版（best-effort，失败静默）
