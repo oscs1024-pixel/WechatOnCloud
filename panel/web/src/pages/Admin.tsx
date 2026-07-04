@@ -147,9 +147,9 @@ function AboutSection({ isAdmin }: { isAdmin: boolean }) {
   // 触发后面板会被重建、本连接短暂中断，约 20s 后自动刷新到新版本。
   const selfUpdate = async () => {
     const ok = await confirm({
-      title: '一键更新面板？',
-      body: `将拉取最新镜像并重建面板容器（数据/登录保留），约十几秒、期间面板会短暂重启，完成后自动刷新。${info?.latest ? `\n目标版本：${info.latest}` : ''}`,
-      confirmText: '更新',
+      title: info?.isDev ? '升级到正式版？' : '一键更新面板？',
+      body: `将拉取最新${info?.isDev ? '正式发布' : ''}镜像并重建面板容器（数据/登录保留），约十几秒、期间面板会短暂重启，完成后自动刷新。${info?.latest ? `\n目标版本：${info.latest}` : ''}`,
+      confirmText: info?.isDev ? '升级' : '更新',
     });
     if (!ok) return;
     setUpdating(true);
@@ -162,10 +162,7 @@ function AboutSection({ isAdmin }: { isAdmin: boolean }) {
       setUpdating(false);
     }
   };
-
-  // 当前版本是否为正式发布版（语义化 vX.Y.Z）。dev / dev-<sha> 等本地构建无法与发布版比较，
-  // 既不显示「已是最新」也不显示红点，只把最新发布版作为信息展示。
-  const isRelease = !!info && /^v?\d+\.\d+\.\d+$/.test(info.current);
+  // 是否开发版由后端 info.isDev 给出（非正式 vX.Y.Z）。开发版允许一键「升级到正式版」。
 
   const check = async () => {
     setChecking(true);
@@ -192,33 +189,30 @@ function AboutSection({ isAdmin }: { isAdmin: boolean }) {
       <div className="settings-block">
         <div className="s-title-row">
           <span className="s-app">云微 · WechatOnCloud</span>
-          {info?.hasUpdate ? <span className="tag tag-warn">有新版</span> : info && !isRelease ? <span className="tag">开发版</span> : null}
+          {info?.isDev ? <span className="tag">开发版</span> : info?.hasUpdate ? <span className="tag tag-warn">有新版</span> : null}
         </div>
         <p className="s-line">
           当前版本 <b>{info?.current ?? '…'}</b>
-          {info?.hasUpdate && info.latest && (
+          {info?.latest && !info.error && (info.isDev || info.hasUpdate) && (
             <>
-              {' · '}最新 <b>{info.latest}</b>
+              {' · '}最新{info.isDev ? '发布' : ''} <b>{info.latest}</b>
             </>
           )}
-          {isRelease && info && !info.hasUpdate && info.latest && !info.error && <>{' · '}已是最新</>}
-          {!isRelease && info?.latest && !info.error && (
-            <>
-              {' · '}最新发布 <b>{info.latest}</b>
-            </>
-          )}
+          {info && !info.isDev && !info.hasUpdate && info.latest && !info.error && <>{' · '}已是最新</>}
         </p>
         {info?.hasUpdate && (
           <div className="ver-hint">
-            {isAdmin
-              ? '点「一键更新面板」即可自动拉新镜像并重建面板（数据/登录保留，约十几秒、期间会短暂重启，完成后自动刷新）。各实例镜像可在「管理 → 升级」单独更新。'
-              : '面板有新版本，请联系管理员更新。'}
+            {!isAdmin
+              ? '面板有新版本，请联系管理员更新。'
+              : info.isDev
+                ? '当前为开发版（本地 / 自构建）。点「升级到正式版」即可拉取最新正式发布镜像并重建面板（数据/登录保留，约十几秒、期间会短暂重启，完成后自动刷新）。'
+                : '点「一键更新面板」即可自动拉新镜像并重建面板（数据/登录保留，约十几秒、期间会短暂重启，完成后自动刷新）。各实例镜像可在「管理 → 升级」单独更新。'}
           </div>
         )}
         <div className="settings-actions">
           {info?.hasUpdate && isAdmin && (
             <button className="btn btn-primary s-btn" disabled={updating} onClick={selfUpdate}>
-              {updating ? '更新中…请稍候' : '一键更新面板'}
+              {updating ? '更新中…请稍候' : info.isDev ? '升级到正式版' : '一键更新面板'}
             </button>
           )}
           {info?.hasUpdate && (

@@ -76,9 +76,10 @@ export interface VolEntry {
 }
 
 export interface VersionInfo {
-  current: string; // 当前构建版本（如 v1.2.0 / dev）
+  current: string; // 当前构建版本（如 v1.2.0 / dev-<sha>）
   latest: string | null; // 仓库上最新发布版（如 v1.2.1）；查不到为 null
-  hasUpdate: boolean; // 有更高的语义化版本可用
+  hasUpdate: boolean; // 有可升级目标（正式版：latest>current；开发版：查到任一正式版）
+  isDev: boolean; // 当前是开发版（非正式 vX.Y.Z）
   checkedAt: number; // 上次检查时间戳（ms）；0=尚未检查
   source: string | null; // 数据来源：dockerhub / ghcr / dockerhub+ghcr
   error: string | null; // 检查失败原因
